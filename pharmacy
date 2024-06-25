@@ -1,0 +1,33 @@
+-- Select needed columns from Customer_Info and Medication_Info tables
+SELECT
+    ci.customer_name,
+    ci.customer_id,
+    mi.rx_number,
+    mi.date_of_service,
+    mi.drug_name,
+    mi.drug_NDC,
+    ci.plan_id,
+    -- Determine if the regular drug (non-ANCILL) is billed
+    CASE
+        WHEN mi.ancillary_charge = 0 OR mi.ancillary_charge IS NULL THEN 'not billed'
+        ELSE 'billed'
+    END AS drug_billing_status,
+    -- Check if there exists an ANCILL drug billed for the same customer alongside of the regular drug
+    CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM Medication_Info anc
+            WHERE anc.rx_number = mi.rx_number
+              AND anc.customer_id = ci.customer_id
+              AND anc.drug_name LIKE 'ANCILL%'
+        ) THEN 'billed'
+        ELSE 'not billed'
+    END AS ancillary_drug_status
+FROM
+    Customer_Info ci
+JOIN
+    Medication_Info mi ON ci.rx_number = mi.rx_number
+WHERE
+    ci.plan_id BETWEEN 600 AND 700
+--hospice plan ids only have a plan id of 600-700
+    AND mi.date_of_service BETWEEN '2024-05-01' AND '2024-05-14';
